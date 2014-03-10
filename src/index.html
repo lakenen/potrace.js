@@ -4,12 +4,13 @@
 <style>
     body {
         font-family: Arial;
-        margin-top: 240px;
+        padding-right: 320px;
     }
     video {
         -webkit-transform: scale(-1, 1);
         position: fixed;
         top: 0;
+        right: 0;
     }
 </style>
 <script>
@@ -57,7 +58,7 @@
         var canvas = document.createElement('canvas');
         canvas.width = wO;
         canvas.height = hO;
-        document.body.appendChild(canvas);
+        //document.body.appendChild(canvas);
         console.time('potrace');
         var ctx = canvas.getContext('2d');
         ctx.drawImage(image, x, y, w, h, 0, 0, wO, hO);
@@ -70,10 +71,10 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         state = bitmap.trace();
         bitmap.free();
-        toCanvas(state, ctx);
+        //toCanvas(state, ctx);
         var svg = toSVG(state, canvas.width, canvas.height);
         //console.log(svg);
-    
+
         var parser = new DOMParser();
         var doc = parser.parseFromString(svg, "image/svg+xml");
         document.body.appendChild(importNode(doc.documentElement,true));
@@ -82,7 +83,8 @@
         console.timeEnd('potrace');
     }
 
-    function toSVG(state, w, h) {
+    function toSVG(state, w, h, color) {
+        color = color || 'black';
         var lastOp;
         var svg = '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" '+
                     'width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" '+
@@ -139,13 +141,9 @@
         var writePaths = function (tree) {
             var p, q;
             for (p = tree; p; p = p.sibling()) {
-                svg += '<path fill="black" stroke="none" d="';
                 writePath(p.curve);
-                svg +='"/>\n';
                 for (q=p.childlist(); q; q = q.sibling()) {
-                    svg += '<path fill="red" stroke="none" d="';
                     writePath(q.curve);
-                    svg +='"/>\n';
                 }
                 for (q=p.childlist(); q; q = q.sibling()) {
                     writePaths(q.childlist());
@@ -153,7 +151,9 @@
             }
         };
 
+        svg += '<path fill-rule="evenodd" fill="'+color+'" stroke="none" d="';
         writePaths(state.path);
+        svg +='"/>\n';
         svg += '</svg>';
         return svg;
     }

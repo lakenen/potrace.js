@@ -37,7 +37,7 @@ PotraceBitmap.prototype.putImageData = function (imageData) {
     var data = imageData.data;
     var i = 0, l, px, r, g, b, a, c;
     var contrast = 3.5;
-    var threshold = 0.3;
+    var threshold = 0.28;
 
     // DEBUG
     // var tmpctx = document.createElement('canvas').getContext('2d');
@@ -59,8 +59,17 @@ PotraceBitmap.prototype.putImageData = function (imageData) {
             // TODO: use alpha
             a = data[px+3]/255;
 
-            // grayscale and apply contrast
+            // luminosity
             l = 0.2126*r + 0.7152*g + 0.0722*b;
+
+            // max decomposition
+            // l = Math.max(r, g, b);
+
+            // min decomposition
+            // l = Math.min(r, g, b);
+
+            // grayscale and apply contrast
+
             c = (l - 0.5) * contrast + 0.5;
             c = c > threshold ? 0 : Math.round(a * 1);
             // set bit appropriately for threshold
@@ -68,7 +77,8 @@ PotraceBitmap.prototype.putImageData = function (imageData) {
             _bitmapPut(this.ptr, x, y, c);
 
             // DEBUG
-            // if (c <= threshold) tmpctx.fillRect(x, y, 1, 1);
+            // tmpctx.fillStyle = '#'+(~~(255*l)).toString(16)+(~~(255*l)).toString(16)+(~~(255*l)).toString(16);
+            // tmpctx.fillRect(x, y, 1, 1);
         }
     }
     this.blank = blank;
