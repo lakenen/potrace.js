@@ -1,6 +1,6 @@
 
 var _createBitmap = Module.cwrap('Potrace_createBitmap', 'number', ['number', 'number']);
-var _traceBitmap = Module.cwrap('Potrace_traceBitmap', 'number', ['number']);
+var _traceBitmap = Module.cwrap('Potrace_traceBitmap', 'number', ['number', 'number', 'number', 'number']);
 var _freeBitmap = Module.cwrap('Potrace_freeBitmap', null, ['number']);
 var _freeState = Module.cwrap('Potrace_freeState', null, ['number']);
 var _bitmapPut = Module.cwrap('Potrace_bitmapPut', null, ['number']);
@@ -10,6 +10,8 @@ var POTRACE_CORNER = 2;
 
 var POTRACE_STATUS_OK = 0;
 var POTRACE_STATUS_INCOMPLETE = 1;
+
+var CONTRAST = 1;
 
 function PotraceBitmap(w, h) {
     var imageData, ptr, mapPtr;
@@ -36,7 +38,7 @@ function PotraceBitmap(w, h) {
 PotraceBitmap.prototype.putImageData = function (imageData) {
     var data = imageData.data;
     var i = 0, l, px, r, g, b, a, c;
-    var contrast = 3.5;
+
     var threshold = 0.28;
 
     // DEBUG
@@ -52,15 +54,18 @@ PotraceBitmap.prototype.putImageData = function (imageData) {
     for (var y = 0, h = this.height; y < h; ++y) {
         for (var x = 0, w = this.width; x < w; ++x) {
             px = 4 * i++;
-            r = data[px]/255;
-            g = data[px+1]/255;
-            b = data[px+2]/255;
+            // r = data[px]/255;
+            // g = data[px+1]/255;
+            // b = data[px+2]/255;
 
             // TODO: use alpha
             a = data[px+3]/255;
 
+            // avg
+            // l = (r + g + b) / 3;
+
             // luminosity
-            l = 0.2126*r + 0.7152*g + 0.0722*b;
+            // l = 0.21*r + 0.72*g + 0.07*b;
 
             // max decomposition
             // l = Math.max(r, g, b);
@@ -70,23 +75,34 @@ PotraceBitmap.prototype.putImageData = function (imageData) {
 
             // grayscale and apply contrast
 
-            c = (l - 0.5) * contrast + 0.5;
-            c = c > threshold ? 0 : Math.round(a * 1);
+            // c = (l - 0.5) * CONTRAST + 0.5;
+            // c = c > threshold ? 0 : Math.round(a * 1);
             // set bit appropriately for threshold
+
+            c = a ? 1 : 0
             if (blank && c !== 0) blank = false;
             _bitmapPut(this.ptr, x, y, c);
 
-            // DEBUG
-            // tmpctx.fillStyle = '#'+(~~(255*l)).toString(16)+(~~(255*l)).toString(16)+(~~(255*l)).toString(16);
+            // // DEBUG
+            // tmpctx.fillStyle = c ? '#000' : '#fff';
+            // // tmpctx.fillStyle = '#'+(~~(255*l)).toString(16)+(~~(255*l)).toString(16)+(~~(255*l)).toString(16);
             // tmpctx.fillRect(x, y, 1, 1);
         }
     }
     this.blank = blank;
 };
 
-PotraceBitmap.prototype.trace = function () {
-	if (this.blank) return false;
-    var statePtr = _traceBitmap(this.ptr);
+PotraceBitmap.prototype.trace = function (params) {
+    if (this.blank) {
+        return false;
+    }
+    if (!params) {
+        params = {};
+    }
+    params.turdsize = params.turdsize || 2
+    params.alphamax = params.alphamax || 1
+    params.opticurve = params.opticurve || 1
+    var statePtr = _traceBitmap(this.ptr, params.turdsize, params.alphamax, params.opticurve);
     if (statePtr === null) {
         throw new Error('failed to trace bitmap');
     }

@@ -12,18 +12,36 @@
         top: 0;
         right: 0;
     }
+    a {
+        background: #fff;
+    }
+    a, a svg {
+        position: fixed;
+        right: 0;
+        top: 456px;
+    }
+    canvas.snap {
+        position: fixed;
+        right: 0;
+        top: 240px;
+    }
 </style>
 <script>
     var Module = { TOTAL_MEMORY: 134217728 }; //128 MB
 </script>
+<script src="stackblur.js"></script>
+<script src="color-thief.js"></script>
+<script src="rgbquant.js"></script>
 <script src="potrace.js"></script>
 <script src="potrace-helpers.js"></script>
 </head>
 <body>
+<input oninput="setContrast(this.value)"/>
+
 <script>
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
     window.URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
-
+    var NUM_COLORS = 16, BLUR_RADIUS = 6
     var video = document.createElement('video');
     video.width = 320;
     video.height = 240;
@@ -42,16 +60,167 @@
     navigator.getUserMedia({ video: true }, success, fail);
     window.addEventListener('keydown', function (ev) {
         if (ev.keyCode === 13) {
-            potrace(video,
-                0, video.videoHeight/20,
+
+
+            var img = document.createElement('canvas')
+            img.width = video.videoWidth
+            img.height = video.videoHeight
+            var imgctx = img.getContext('2d')
+            imgctx.drawImage(video, 0, 0)
+
+            imgctx.putImageData(contrastImage(imgctx.getImageData(0, 0, img.width, img.height), 60), 0 ,0);
+
+            stackBlurCanvasRGBA(img, 0, 0, img.width, img.height, BLUR_RADIUS);
+
+
+            //// COLOR THIEF
+            var colorThief = new ColorThief();
+            var colors = colorThief.getPalette(img, NUM_COLORS - 1);
+            // add white, because colorthief doesn't include white in the palette
+            colors.push([255, 255, 255])
+
+            //// RGBQUANT
+            // var q = new RgbQuant({
+            //     colors: NUM_COLORS
+            // });
+            // q.sample(img);
+            // var colors = q.palette(true);
+
+            colors.forEach(function (c) {
+                var el = document.createElement('div')
+                document.body.appendChild(el)
+                el.style.backgroundColor='rgb(' + c[0] + ', ' + c[1] + ', ' + c[2] + ')'
+                el.style.width = '20px';
+                el.style.height = '20px';
+            })
+
+            var canvas = document.createElement('canvas')
+            canvas.width = video.width
+            canvas.height = video.height - 2 * (video.height/20)
+            canvas.classList.add('snap')
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, video.videoHeight/20,
                 video.videoWidth, video.videoHeight - 2*(video.videoHeight/20),
-                video.width, video.height - 2 * (video.height/20), 0);
+                0, 0,
+                canvas.width, canvas.height);
+            ctx.putImageData(reduceImage(ctx.getImageData(0, 0, canvas.width, canvas.height), colors), 0, 0)
+
+            document.body.appendChild(canvas)
+            var btn = document.createElement('button')
+            btn.innerHTML = 'do it'
+            document.body.appendChild(btn)
+            btn.onclick = function () {
+
+                var fns = colors.map(function (c) {
+                    return function () {
+                        potrace(canvas,
+                            0, 0,
+                            canvas.width, canvas.height,
+                            canvas.width, canvas.height,
+                            c);
+                        next = fns.shift()
+                        if (next) setTimeout(next)
+                    }
+                })
+                fns.shift()()
+            }
+            // potrace(video,
+            //     0, video.videoHeight/20,
+            //     video.videoWidth, video.videoHeight - 2*(video.videoHeight/20),
+            //     video.width, video.height - 2 * (video.height/20), 1);
+            // potrace(video,
+            //     0, video.videoHeight/20,
+            //     video.videoWidth, video.videoHeight - 2*(video.videoHeight/20),
+            //     video.width, video.height - 2 * (video.height/20), 2);
             /*potrace(video,
                 0, video.videoHeight/20,
                 video.videoWidth, video.videoHeight - 2*(video.videoHeight/20),
                 video.width, video.height - 2 * (video.height/20), 0);*/
+            ev.preventDefault()
         }
     }, true);
+
+    function reduceImage(imageData, colors) {
+        var pixel, dist, bestDist, bestColor, numColors = colors.length;
+
+        for (var i = 0, l = imageData.data.length; i < l; i+=4) {
+            pixel = [imageData.data[i], imageData.data[i+1], imageData.data[i+2]]
+            bestDist = false
+            for (var c = 0; c < numColors; ++c) {
+                dist = colorDistance(colors[c], pixel)
+                if (bestDist === false || dist < bestDist) {
+                    bestColor = colors[c]
+                    bestDist = dist
+                }
+            }
+            imageData.data[i] = bestColor[0]
+            imageData.data[i+1] = bestColor[1]
+            imageData.data[i+2] = bestColor[2]
+        }
+        return imageData
+    }
+
+    function colorDistance(c1, c2) {
+        var rmean = (c1[0] + c2[0]) / 2,
+            r = c1[0] - c2[0],
+            g = c1[1] - c2[1],
+            b = c1[2] - c2[2]
+        return Math.sqrt((((512+rmean)*r*r)>>8) + 4*g*g + (((767-rmean)*b*b)>>8));
+    }
+
+    function renderImageData(imageData, wO, hO) {
+        var canvas = document.createElement('canvas');
+        canvas.width = wO;
+        canvas.height = hO;
+        canvas.getContext('2d').putImageData(imageData, 0, 0);
+
+        document.body.appendChild(canvas);
+    }
+
+    function applyGrayscale(imageData, w, h) {
+        var i = 0, y, x;
+        for (y = 0; y < h; ++y) {
+            for (x = 0; x < w; ++x) {
+                px = 4 * i++;
+                r = imageData.data[px]/255;
+                g = imageData.data[px+1]/255;
+                b = imageData.data[px+2]/255;
+
+                // avg
+                l = (r + g + b) / 3;
+
+                // luminosity
+                // l = 0.21*r + 0.72*g + 0.07*b;
+
+                // max decomposition
+                // l = Math.max(r, g, b);
+
+                // min decomposition
+                // l = Math.min(r, g, b);
+
+                l *= 255;
+
+                imageData.data[px] = l;
+                imageData.data[px+1] = l;
+                imageData.data[px+2] = l;
+            }
+        }
+        contrastImage(imageData, window.contrast || 0)
+        renderImageData(imageData, w, h)
+    }
+
+    function contrastImage(imageData, contrast) {
+        var data = imageData.data;
+        var factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+
+        for(var i=0;i<data.length;i+=4)
+        {
+            data[i] = factor * (data[i] - 128) + 128;
+            data[i+1] = factor * (data[i+1] - 128) + 128;
+            data[i+2] = factor * (data[i+2] - 128) + 128;
+        }
+        return imageData;
+    }
 
     function potrace(image, x, y, w, h, wO, hO, color) {
         var bitmap, state;
@@ -62,25 +231,73 @@
         console.time('potrace');
         var ctx = canvas.getContext('2d');
         ctx.drawImage(image, x, y, w, h, 0, 0, wO, hO);
+        // ctx.drawImage(ctx.canvas, 0, 0, wO/4, hO/4, 0, 0, wO, hO)
         var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        /*for (var i = 0; i < imageData.data.length; i++) {
-            if (i % 4 === 3) continue;
-            imageData.data[i] = i % 4 == color ? imageData.data[i] : 0
-        }*/
+
+        if (color) {
+            for (var i = 0, l = imageData.data.length; i < l; i+=4) {
+                pixel = [imageData.data[i], imageData.data[i+1], imageData.data[i+2]]
+                if (color[0] === pixel[0] && color[1] === pixel[1] && color[2] === pixel[2]) {
+                    imageData.data[i] = color[0]
+                    imageData.data[i+1] = color[1]
+                    imageData.data[i+2] = color[2]
+                } else {
+                    imageData.data[i] = 0
+                    imageData.data[i+1] = 0
+                    imageData.data[i+2] = 0
+                    imageData.data[i+3] = 0
+                }
+            }
+        }
+        // renderImageData(imageData, wO, hO)
+
+        // apply grayscale
+        // applyGrayscale(ctx.getImageData(0, 0, canvas.width, canvas.height), wO, hO)
+
+
+
         bitmap = new PotraceBitmap(imageData);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        state = bitmap.trace();
+        state = bitmap.trace({
+            turdsize: 0,
+            alphamax: 1.34,
+            opticurve: 0
+        });
         bitmap.free();
-        //toCanvas(state, ctx);
-        var svg = toSVG(state, canvas.width, canvas.height);
-        //console.log(svg);
+        if (state) {
 
-        var parser = new DOMParser();
-        var doc = parser.parseFromString(svg, "image/svg+xml");
-        document.body.appendChild(importNode(doc.documentElement,true));
+            //toCanvas(state, ctx);
+            var svg = toSVG(state, canvas.width, canvas.height);
+            //console.log(svg);
 
-        state.free();
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(svg, "image/svg+xml");
+            var el = document.querySelector('a.result');
+            var svgEl = importNode(doc.documentElement,true)
+            if (color) {
+                svgEl.querySelector('path').setAttribute('fill', 'rgb(' + color[0] + ', ' + color[1] + ', ' + color[2] + ')')
+            }
+            if (!el) {
+                el = document.createElement('a');
+                el.classList.add('result')
+                document.body.appendChild(el);
+                el.appendChild(svgEl);
+            } else {
+                el.querySelector('svg').appendChild(svgEl.querySelector('path'))
+            }
+
+            el.href = 'data:image/svg+xml,' + encodeURIComponent(el.innerHTML)
+            el.target = '_blank'
+
+            state.free();
+        } else {
+            console.log('failed to trace?')
+        }
         console.timeEnd('potrace');
+    }
+
+    function setContrast(val) {
+        CONTRAST = val;
     }
 
     function toSVG(state, w, h, color) {

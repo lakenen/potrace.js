@@ -58,12 +58,13 @@ extern "C" {
     bm_free(bm);
   }
 
-  potrace_state_t *Potrace_traceBitmap(potrace_bitmap_t *bm) {
+  potrace_state_t *Potrace_traceBitmap(potrace_bitmap_t *bm, int turdsize, double alphamax, int opticurve) {
     potrace_param_t *param;
     potrace_state_t *st;
     param = potrace_param_default();
-    param->turdsize = 0;
-    param->alphamax = 1;
+    param->turdsize = turdsize;
+    param->alphamax = alphamax;
+    param->opticurve = opticurve;
     st = potrace_trace(param, bm);
     if (!st || st->status != POTRACE_STATUS_OK) {
       // error!
