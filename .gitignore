@@ -1,7 +1,7 @@
 *.la
 *.lo
 *.o
-src/build
+src/.build
 potrace/Makefile
 potrace/check/.deps/
 potrace/check/Makefile
@@ -17,3 +17,4 @@ potrace/src/Makefile
 potrace/src/mkbitmap
 potrace/src/potrace
 potrace/stamp-h1
+potrace/libtool
