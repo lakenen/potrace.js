@@ -56,6 +56,7 @@
 <label>Contrast</label>
 <input placeholder="Contrast (30)" type="number" oninput="CONTRAST=this.value" step="10"/>
 <div class="colors"></div>
+<div class="stuff"></div>
 <script>
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
     window.URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
@@ -78,7 +79,8 @@
     navigator.getUserMedia({ video: true }, success, fail);
     window.addEventListener('keydown', function (ev) {
         if (ev.keyCode === 13) {
-
+            document.querySelector('.colors').innerHTML = ''
+            document.querySelector('.stuff').innerHTML = ''
 
             var img = document.createElement('canvas')
             img.width = video.videoWidth
@@ -124,10 +126,10 @@
                 canvas.width, canvas.height);
             ctx.putImageData(reduceImage(ctx.getImageData(0, 0, canvas.width, canvas.height), colors), 0, 0)
 
-            document.body.appendChild(canvas)
+            document.querySelector('.stuff').appendChild(canvas)
             var btn = document.createElement('button')
             btn.innerHTML = 'do it'
-            document.body.appendChild(btn)
+            document.querySelector('.stuff').appendChild(btn)
             btn.onclick = function () {
 
                 var fns = colors.map(function (c) {
@@ -196,7 +198,7 @@
         canvas.height = hO;
         canvas.getContext('2d').putImageData(imageData, 0, 0);
 
-        document.body.appendChild(canvas);
+        document.querySelector('.stuff').appendChild(canvas);
     }
 
     function applyGrayscale(imageData, w, h) {
@@ -249,7 +251,7 @@
         var canvas = document.createElement('canvas');
         canvas.width = wO;
         canvas.height = hO;
-        //document.body.appendChild(canvas);
+        //document.querySelector('.stuff').appendChild(canvas);
         console.time('potrace');
         var ctx = canvas.getContext('2d');
         ctx.drawImage(image, x, y, w, h, 0, 0, wO, hO);
@@ -302,7 +304,7 @@
             if (!el) {
                 el = document.createElement('a');
                 el.classList.add('result')
-                document.body.appendChild(el);
+                document.querySelector('.stuff').appendChild(el);
                 el.appendChild(svgEl);
             } else {
                 el.querySelector('svg').appendChild(svgEl.querySelector('path'))
