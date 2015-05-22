@@ -11,7 +11,7 @@ var POTRACE_CORNER = 2;
 var POTRACE_STATUS_OK = 0;
 var POTRACE_STATUS_INCOMPLETE = 1;
 
-var CONTRAST = 1;
+// var CONTRAST = 1;
 
 function PotraceBitmap(w, h) {
     var imageData, ptr, mapPtr;

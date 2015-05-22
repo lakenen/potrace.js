@@ -2,9 +2,14 @@
 <head>
 <title>potrace.js</title>
 <style>
+    html {
+        height: 100%;
+    }
     body {
         font-family: Arial;
         padding-right: 320px;
+        height: 100%;
+        margin: 0;
     }
     video {
         -webkit-transform: scale(-1, 1);
@@ -25,6 +30,14 @@
         right: 0;
         top: 240px;
     }
+    .colors {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        z-index: -1;
+    }
 </style>
 <script>
     var Module = { TOTAL_MEMORY: 134217728 }; //128 MB
@@ -36,12 +49,17 @@
 <script src="potrace-helpers.js"></script>
 </head>
 <body>
-<input oninput="setContrast(this.value)"/>
-
+<label>Colors</label>
+<input placeholder="Colors (16)" type="number" oninput="NUM_COLORS=this.value"/>
+<label>Blur</label>
+<input placeholder="Blur Radius (2)" type="number" oninput="BLUR_RADIUS=this.value"/>
+<label>Contrast</label>
+<input placeholder="Contrast (30)" type="number" oninput="CONTRAST=this.value" step="10"/>
+<div class="colors"></div>
 <script>
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
     window.URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
-    var NUM_COLORS = 16, BLUR_RADIUS = 6
+    var NUM_COLORS = 16, BLUR_RADIUS = 2, CONTRAST = 30
     var video = document.createElement('video');
     video.width = 320;
     video.height = 240;
@@ -68,7 +86,7 @@
             var imgctx = img.getContext('2d')
             imgctx.drawImage(video, 0, 0)
 
-            imgctx.putImageData(contrastImage(imgctx.getImageData(0, 0, img.width, img.height), 60), 0 ,0);
+            imgctx.putImageData(contrastImage(imgctx.getImageData(0, 0, img.width, img.height), CONTRAST), 0 ,0);
 
             stackBlurCanvasRGBA(img, 0, 0, img.width, img.height, BLUR_RADIUS);
 
@@ -76,6 +94,7 @@
             //// COLOR THIEF
             var colorThief = new ColorThief();
             var colors = colorThief.getPalette(img, NUM_COLORS - 1);
+            var dominantColor = colorThief.getColor(img)
             // add white, because colorthief doesn't include white in the palette
             colors.push([255, 255, 255])
 
@@ -88,10 +107,10 @@
 
             colors.forEach(function (c) {
                 var el = document.createElement('div')
-                document.body.appendChild(el)
+                el.classList.add('color')
+                document.querySelector('.colors').appendChild(el)
                 el.style.backgroundColor='rgb(' + c[0] + ', ' + c[1] + ', ' + c[2] + ')'
-                el.style.width = '20px';
-                el.style.height = '20px';
+                el.style.height = (100/colors.length) + '%';
             })
 
             var canvas = document.createElement('canvas')
@@ -118,6 +137,9 @@
                             canvas.width, canvas.height,
                             canvas.width, canvas.height,
                             c);
+
+                        var svg = document.querySelector('a.result svg');
+                        svg.style.backgroundColor = 'rgb(' + dominantColor[0] + ', ' + dominantColor[1] + ', ' + dominantColor[2] + ')'
                         next = fns.shift()
                         if (next) setTimeout(next)
                     }
@@ -259,7 +281,7 @@
         bitmap = new PotraceBitmap(imageData);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         state = bitmap.trace({
-            turdsize: 0,
+            turdsize: 4,
             alphamax: 1.34,
             opticurve: 0
         });
