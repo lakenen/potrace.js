@@ -50,11 +50,11 @@
 </head>
 <body>
 <label>Colors</label>
-<input placeholder="Colors (16)" type="number" oninput="NUM_COLORS=this.value"/>
+<input placeholder="Colors (16)" type="number" oninput="NUM_COLORS=parseInt(this.value)" min="2"/>
 <label>Blur</label>
-<input placeholder="Blur Radius (2)" type="number" oninput="BLUR_RADIUS=this.value"/>
+<input placeholder="Blur Radius (2)" type="number" oninput="BLUR_RADIUS=parseInt(this.value)"/>
 <label>Contrast</label>
-<input placeholder="Contrast (30)" type="number" oninput="CONTRAST=this.value" step="10"/>
+<input placeholder="Contrast (30)" type="number" oninput="CONTRAST=parseInt(this.value)" step="10"/>
 <div class="colors"></div>
 <div class="stuff"></div>
 <script>
@@ -83,8 +83,8 @@
             document.querySelector('.stuff').innerHTML = ''
 
             var img = document.createElement('canvas')
-            img.width = video.videoWidth
-            img.height = video.videoHeight
+            img.width = video.videoWidth || video.width
+            img.height = video.videoHeight || video.height
             var imgctx = img.getContext('2d')
             imgctx.drawImage(video, 0, 0)
 
@@ -239,9 +239,9 @@
 
         for(var i=0;i<data.length;i+=4)
         {
-            data[i] = factor * (data[i] - 128) + 128;
-            data[i+1] = factor * (data[i+1] - 128) + 128;
-            data[i+2] = factor * (data[i+2] - 128) + 128;
+            data[i] = Math.floor(factor * (data[i] - 128) + 128);
+            data[i+1] = Math.floor(factor * (data[i+1] - 128) + 128);
+            data[i+2] = Math.floor(factor * (data[i+2] - 128) + 128);
         }
         return imageData;
     }
